@@ -39,15 +39,14 @@
 (define (first-word->digit str)
   (let ([word (regexp-match RWORDS str)])
     (if word
-        (let* ([word (first word)] ;; regexp-match returns a list
-               [last-letter (substring word (- (string-length word) 1))])
+        (let* ([word (first word)]) ;; regexp-match returns a list
           (regexp-replace
            word
            str
            ;; Append the last letter of the word form,
            ;; To cover the edge-case of "eightwo" -> 82, etc.
-           ;; This was, "eightwo" -> "8two".
-           (string-append (word->num word) last-letter)))
+           ;; This was, "eightwo" -> "8eightwo".
+           (string-append (word->num word) word)))
         str)))
 
 ;; String -> String

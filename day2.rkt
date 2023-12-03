@@ -34,7 +34,7 @@
          [id (second (string-split (first strip-id) " "))]
          [sets (string-split (second strip-id) ";")])
     (game (string->number id)
-          (map (compose parse->round parse-round) sets))))
+          (map (compose canonical-round parse-round) sets))))
 
 ;; String -> [Listof [Pairof String Integer]]
 ;; parses a "round" (aka "set") of the game into a nested list structure.

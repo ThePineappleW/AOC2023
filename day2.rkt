@@ -1,30 +1,43 @@
 #lang racket
 
+;; String Int Int Int -> Int
+;; Completes task #1
 (define (which-games input red green blue)
-  (let* ([lines (string-split input "\n")]
-         [games (map parse-game lines)]
-         [x (map (λ(g) (apply string-append (number->string (game-id g)) (map print-round (game-rounds g)))) games)])
+    (apply + ;; Sum of: 
+           (map game-id ;; Game IDs of:
+                (filter (λ(g) (valid-game g red green blue)) ;; Valid games
+                        (parse-input input)))))
 
-    (apply +
-           (map game-id
-                (filter (λ(g) (valid-game g red green blue))
-                        games)))))
+;;  String -> Int
+;; Completes part two
+(define (min-amounts input)
+    (apply + ;; Sum of:
+           (map power ;; Powers of minimum-games
+                (parse-input input))))
 
-(define (min-amounts input red green blue)
-  (let* ([lines (string-split input "\n")]
-         [games (map parse-game lines)])
-    (apply + (map power games))))
+;; String -> [Listof Game]
+;; Converts a game into a reusable form 
+(define (parse-input str)
+  (map parse-game (string-split str "\n")))
 
-(struct round [red green blue])
+;; Convenience structs
+;; These aren't strictly necessary
+;; (We could just use nests of lists)
+;; But they allow for more intuitive organization.
 (struct game [id rounds])
+(struct round [red green blue])
 
+;; String -> Game
+;; Parses a single line into a Game struct.
 (define (parse-game str)
   (let* ([strip-id (string-split str ":")]
          [id (second (string-split (first strip-id) " "))]
          [sets (string-split (second strip-id) ";")])
-    (game (string->number id) (map (compose parse->round parse-round) sets))))
+    (game (string->number id)
+          (map (compose parse->round parse-round) sets))))
 
-;; String -> (Listof (Pairof String Integer))
+;; String -> [Listof [Pairof String Integer]]
+;; parses a "round" (aka "set") of the game into a nested list structure.
 (define (parse-round str)
   (let ([draws (map string-trim (string-split str ","))])
     (map (λ(s) (let* ([split (string-split s " ")]
@@ -34,40 +47,35 @@
          draws)))
 
 ;; (Listof (Pairof String Integer)) -> Round
-(define (parse->round parsed-round)
+;; Converts a nested list structure into a canonical struct
+(define (canonical-round parsed-round)
+  ;; This is a little hacky;
+  ;; `assoc` returns the key-value pair but we only want the key.
+  ;; `or` will return the pair if the key is found, or '(0 0) if not.
+  ;; Thus, taking the `second` always gets a desired value.
   (round (second (or (assoc "red" parsed-round) '(0 0)))
          (second (or (assoc "green" parsed-round) '(0 0)))
          (second (or (assoc "blue" parsed-round) '(0 0)))))
 
+;; Game Int Int Int -> Boolean
+;; Checks each round of a game to see if it is possible
+;; based on the given color values.
 (define (valid-game g red green blue)
   (andmap (λ(r) (and (<= (round-red r) red)
                      (<= (round-green r) green)
                      (<= (round-blue r) blue)))
           (game-rounds g)))
 
-(define (print-round rnd)
-  (string-append "("
-                 (number->string (round-red rnd))
-                 ", "
-                 (number->string (round-green rnd))
-                 ", "
-                 (number->string (round-blue rnd))
-                 ")"))
-
-;; Listof Round -> Num
+;; [Listof Round]-> Num
+;; For each round, get the maximum red, green, and blue values.
+;; Then, multply them to find the power.
 (define (power g)
   (let ([rounds (game-rounds g)])
   (* (apply max (map round-red rounds))
      (apply max (map round-green rounds))
      (apply max (map round-blue rounds)))))
 
-(define test1 "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
-Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
-Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
-Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green")
-
-(define test2 "Game 1: 1 red, 5 blue, 10 green; 5 green, 6 blue, 12 red; 4 red, 10 blue, 4 green
+(define test "Game 1: 1 red, 5 blue, 10 green; 5 green, 6 blue, 12 red; 4 red, 10 blue, 4 green
 Game 2: 2 green, 1 blue; 1 red, 2 green; 3 red, 1 blue; 2 blue, 1 green, 8 red; 1 green, 10 red; 10 red
 Game 3: 14 red, 9 green, 5 blue; 2 green, 5 red, 7 blue; 1 blue, 14 green; 6 green, 2 red
 Game 4: 2 green, 3 blue, 9 red; 1 red, 1 green; 4 red, 4 blue; 1 blue, 19 red; 7 red
@@ -167,3 +175,13 @@ Game 97: 3 green, 7 red; 2 red, 3 green, 1 blue; 4 green, 1 blue, 4 red; 1 red
 Game 98: 9 blue, 8 red, 3 green; 10 blue, 3 red; 7 blue, 2 green, 7 red; 4 red, 11 blue, 3 green; 8 red, 9 blue, 2 green
 Game 99: 5 green, 8 blue; 3 blue, 4 red, 16 green; 1 green, 5 red, 6 blue
 Game 100: 6 blue, 9 green; 3 green, 6 blue; 5 blue, 1 red")
+
+;; Part 1: 2720
+;; Part 2: 71535
+(println "(which-games test 12 13 14)")
+(println (string-append "Actual:   " (number->string (which-games test 12 13 14))))
+(println "Expected: 2270")
+(println "=========================")
+(println "(min-amounts test 12 13 14)")
+(println (string-append "Actual:   " (number->string (min-amounts test))))
+(println "Expected: 71535")

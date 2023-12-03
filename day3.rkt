@@ -4,43 +4,35 @@
 ;; 2. Find all number spans
 ;; 3. For each number span, is it adjacent to a symbol location?
 
-
+;; String -> String
 (define (add-part-numbers input)
   (let ([symbols (find-all-symbols input)]
         [numbers (find-all-numbers input)]
         [line-length (+ 1 (string-length (first (string-split input "\n"))))])
-    (apply + 
-           (map (λ(span) (string->number (substring input (car span) (cdr span))))
-                (filter (λ(span)
-                          (ormap (λ(pos)
+    (apply + ;; Sum of...
+           (map (λ(span) (span-ref span input)) ;; Numbers of spans...
+                (filter (λ(span) ;; which...
+                          (ormap (λ(pos) ;; are adjacent to a symbol.
                                    (adjacent? span pos line-length))
                                  symbols))
                         numbers)))))
 
+;; String -> String
 (define (add-gear-ratios input)
   (let ([symbols (find-all-symbols input)]
         [numbers (find-all-numbers input)]
         [line-length (+ 1 (string-length (first (string-split input "\n"))))])
-    (apply +
-           (map (λ(symbol) (gear-ratio symbol numbers input line-length))
+    (apply + ;; Sum of...
+           (map (λ(symbol) ;; gear ratios of gears.
+                  (gear-ratio symbol numbers input line-length))
                 symbols))))
-
-(define (add-part-numbers* input)
-  (let ([symbols (find-all-symbols input)]
-        [numbers (find-all-numbers input)]
-        [line-length (+ 1 (string-length (first (string-split input "\n"))))]) 
-    (for-each context*
-              (filter (λ(span)
-                        (ormap (λ(pos)
-                                 (adjacent? span pos line-length))
-                               symbols))
-                      numbers))))
 
 ;; String -> Listof Integer
 ;; Gets the positions of all symbols
 ;; The filter is necessary because Racket regexps
 ;; are weird with newlines in negative ranges.
 (define (find-all-symbols input)
+  ;; The filter against \n is necessary because Racket regexps have trouble with it.
   (map car (filter (λ(i) (not (char=? (string-ref input (car i)) #\newline)))
                    (regexp-match-positions* #rx"[^0-9\\.]" input))))
 
@@ -51,6 +43,11 @@
 (define (find-all-numbers input)
   (regexp-match-positions* #rx"[0-9]+" input))
 
+;; [Pairof Integer] String -> Integer
+;; Looks up a [span) and parses it to a number.
+(define (span-ref span string)
+  (string->number (substring string (car span) (cdr span))))
+
 ;; [Pairof Integer] Integer -> Boolean
 ;; Is the span adjacent to the position?
 (define (adjacent? span pos line-length)
@@ -59,41 +56,21 @@
     (or (<= (- start 1) pos end) ;; Simple overlap (potential bug
         (<= (- start 1) (- pos line-length) end) ;; line above
         (<= (- start 1) (+ pos line-length) end)))) ;; line below
-        
-(define (adjacent?* span pos l)
-  (if (adjacent? span pos l)
-      (let ([num (substring input (car span) (cdr span))]
-            [sym (string-ref input pos)])
-        (begin (print num)
-               (print "     ")
-               (print sym)
-               (println "")
-               #t))
-      #f))
-
-(define (context span input)
-  (let ([line-length (+ 1 (string-length (first (string-split input "\n"))))]
-        [start (- (car span) 1)]
-        [end (+ (cdr span) 1)])
-    (when (>= (- start line-length) 0)
-      (println (substring input (- start line-length) (- end line-length))))
-    (println (substring input start end))
-    (when (< (+ end line-length) (string-length input))
-      (println (substring input (+ start line-length) (+ end line-length))))
-    (println "===============")))
-
-
-(define (context* span)
-  (context span input))
-  
+       
+;; Integer [Listof [Pairof Integer]] String Integer -> Integer
+;; A symbol is a gear if:
+;; - It is "*"
+;; - It is adjacent to exactly two numbers.
+;; The gear ratio is the sum of those numbers.
+;; If `gear` is not a gear, return 0 to avoid impacting the sum.
 (define (gear-ratio gear numbers input line-length)
   (if (char=? #\* (string-ref input gear))
       (let ([parts (filter (λ(span)
                              (adjacent? span gear line-length))
                            numbers)])
         (if (= 2 (length parts))
-            (* (string->number (substring input (car (first parts)) (cdr (first parts))))
-               (string->number (substring input (car(second parts)) (cdr (second parts)))))
+            (* (span-ref (first parts) input)
+               (span-ref (second parts) input))
             0))
       0))
 
@@ -249,3 +226,11 @@
 .....32....$.....#...643*..............116........./905......*..../...........311......811$.*........*890..........924..670........=....882.
 ......*.....81.....*.....636.......317...*...................899.............*....*698............626....................-..+..@.......*....
 .......877......256.714...................825.........458....................869..............................54............28.823..110.....")
+
+(printf "add-part-numbers:~n")
+(printf "  Expected: 549908~n")
+(printf "  Actual:   ~v~n" (add-part-numbers input))
+(printf "====================~n")
+(printf "add-gear-ratios:~n")
+(printf "  Expected: 81166799~n")
+(printf "  Actual:   ~v~n" (add-gear-ratios input))
